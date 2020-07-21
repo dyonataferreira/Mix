@@ -1,5 +1,7 @@
-// projeto de brincadeira que tem
-// led, laser, LDR, barra gráfica, LCD com I2C, bluetooth
+// this project use:
+// led, laser, LDR, led bar, LCD with I2C, bluetooth
+
+// includes all necessary libraries
 #include <LiquidCrystal_I2C.h>
 #include <ThreadController.h>
 #include <Ultrasonic.h>
@@ -10,31 +12,31 @@ LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 // SDA A4
 // SCL A5
 
-// pinos e variáveis______________________________________________________
-#define warn 11 // led de aviso
+// pins and variables______________________________________________________
+#define warn 11 // warn led
 
-#define lampada 13 // led de presença
+#define lampada 13 // led to emulate an rele module
 
 float Filter;   // variable to read a value from private code insides class
 
-// usado na função 'LeituraLDR'
-#define ldr A0  // sensor de luz
+// used in function 'LeituraLDR'
+#define ldr A0  // light sensor
 int luz;
 
-// usado na função ' '
-#define potenciometro A1  // potenciômetro
+// used in function 'UltraComPot'
+#define potenciometro A1  // potenciometer
 int pot;
 
-// usado na função 'warnFunction'
+// used in function 'warnFunction'
 byte pwm;       // controla o brilho do led
 bool muda = 0;  // interruptor
 
-// usado na função 'Barra'
-int x = 0;  // controla os leds
-bool t = 0; // interruptor
+// used in function 'Barra'
+int x = 0;      // control leds
+bool t = 0;     // switch
+unsigned long timeToChange, relogio;
 
-// Classes e funções
-
+// Class and functions
 class Ultrasom {        // class
   public:
     // will set the ultrasonic pin's
@@ -100,24 +102,25 @@ class Ultrasom {        // class
     };
 };
 
-Ultrasom us1(16, 17);   // Ultrasonic 1
+Ultrasom us1(16, 17);   // add a new Ultrasonic 1
+// if u wanna add a new sensor just do:
+// Ultrasom sensor(trig_pin, echo_pin); // add a new ultrasonic sensor
 
-const int barra[] = {   // pinos da barra gráfica
+const int barra[] = {   // led bar pins
   2, 3, 4, 5, 6, 7, 8, 9, 10, 12
 };
 
-// funções das threads
-void warnFunction() {   // controla o warn
-  if (pwm < 254 && muda == 0)   // liga o led até o maximo
+// threads functions
+void warnFunction() {   // control the warn led
+  if (pwm < 254 && muda == 0)   // till maximum brightness
     pwm++;
 
-  else {      // se atingir o maximo, começa a diminuir até o minimo
-    muda = 1;
+  else {      // if hits 255 pwm, start to turn off till minimum brightness
     pwm--;
-    if (pwm == 1)       // se diminuiu até o minimo possivel, volta a acender
+    if (pwm == 1)       // if hits the minimum, increase till maximum
       muda = 0;
   }
-  analogWrite(warn, pwm);       // configura o led para acender ou diminuir
+  analogWrite(warn, pwm);       // change the led brightness
 }
 
 void bluetoothh() {     // Bluetooth
@@ -130,34 +133,20 @@ void bluetoothh() {     // Bluetooth
   }
 }
 
-// controla a barra gráfica
-void Barra() {          // animação simples
-  if (t == 0) {
-    // faz algo
-    if (x <= 10) {
+// led bar control
+void Barra() {          // simple animation
+  if (x <= 11) {
+    if (relogio - timeToChange >= pot) {
+      timeToChange = relogio;
       digitalWrite(barra[x], HIGH);
+      digitalWrite(barra[x - 1], LOW);
       x++;
-
-      if (x == 10) {
-        t = 1;
-        x = 0;
-      }
     }
-  } else {
-    // faz outro algo
-    if (x <= 10) {
-      digitalWrite(barra[x], LOW);
-      x++;
-
-      if (x == 10) {
-        t = 0;
-        x = 0;
-      }
-    }
+    if (x == 11)x = 0;
   }
 }
 
-void leituraLDR() {     // lê o sensor de presença
+void leituraLDR() {     // read the ldr sensor
   luz = analogRead(ldr);
 
   //lcd.setCursor(0,1);
@@ -180,7 +169,7 @@ void ultraComPot() {
   lcd.print(pot);
 }
 
-// cria as threads
+// create the threads we will use
 ThreadController cpu;
 Thread threadWarn;
 Thread threadBluetooth;
@@ -189,7 +178,7 @@ Thread threadLeitura;
 Thread threadUltra;
 Thread threadUltraComPot;
 
-// configura todas as threads e o delay de cada uma
+// setup all threads and the 'delay' of each them
 void ted() {
   threadWarn.setInterval(4);
   threadWarn.onRun(warnFunction);
@@ -215,11 +204,11 @@ void ted() {
 }
 
 void setup() {
-  //inicia a comunicação serial e com o LCD
+  // start Serial and LCD comunication
   Serial.begin(9600);
   lcd.begin(16, 2);
 
-  ted();    // chama a função para configurar as threads
+  ted();    // call the funciont to setup out threads
 
   for (int i = 0; i < 10; i++) {
     pinMode(barra[i], OUTPUT);
@@ -230,12 +219,13 @@ void setup() {
   pinMode(lampada, OUTPUT);
 
   lcd.setCursor(0, 0);
-  lcd.print("char do blue: ");
+  lcd.print("bluetooth: ");
   lcd.print("A");
 }
 
 void loop() {
-  // com uma simples linha de código podemos controlar todas
-  // as funções, sem usar o delay ou travar nosso programa
-  cpu.run();    // executa todas as threads
+  // With a simple line of code we can control our entire project
+  // without using the  delay();  or pause our program in aone line of code
+  cpu.run();      // execute all threads - each thread acn control one or more functions
+  relogio = millis();   // configure our clock
 }
