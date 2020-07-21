@@ -1,0 +1,241 @@
+// projeto de brincadeira que tem
+// led, laser, LDR, barra gráfica, LCD com I2C, bluetooth
+#include <LiquidCrystal_I2C.h>
+#include <ThreadController.h>
+#include <Ultrasonic.h>
+#include <Thread.h>
+#include <Wire.h>
+
+LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+// SDA A4
+// SCL A5
+
+// pinos e variáveis______________________________________________________
+#define warn 11 // led de aviso
+
+#define lampada 13 // led de presença
+
+float Filter;   // variable to read a value from private code insides class
+
+// usado na função 'LeituraLDR'
+#define ldr A0  // sensor de luz
+int luz;
+
+// usado na função ' '
+#define potenciometro A1  // potenciômetro
+int pot;
+
+// usado na função 'warnFunction'
+byte pwm;       // controla o brilho do led
+bool muda = 0;  // interruptor
+
+// usado na função 'Barra'
+int x = 0;  // controla os leds
+bool t = 0; // interruptor
+
+// Classes e funções
+
+class Ultrasom {        // class
+  public:
+    // will set the ultrasonic pin's
+    int trigger, echo;
+
+#define N 5         // nº avarage
+    float filter;   // filter variable
+    int val[N];     // list
+
+    // constructor
+    // set the pins (we will set them after)
+    Ultrasom(int trig, int _echo) {
+      trigger = trig;
+      echo = _echo;
+
+      // setup to send and recive the pulse
+      pinMode(trigger, OUTPUT);
+      pinMode(echo, INPUT);
+    }
+
+    // read the float value of rensor and convert to centimeters
+    float read() {
+      // clear and sent one pulse
+      digitalWrite(trigger, 0);       // time for Arduino calculate the distance
+      delayMicroseconds(2);
+      digitalWrite(trigger, 1);
+      delayMicroseconds(10);
+      digitalWrite(trigger, 0);
+
+      // the 'pulseIn' wait the pulse back and give us the time that it spended to travel
+      long duracao = pulseIn(echo, HIGH);
+
+      // use 2.90 to get the distance in millimeters
+      // use 29.0 to get the distance in centimeters
+      // use 2900 to get the distance in meters
+      return duracao / 29.0 / 2;
+      // time from going and back divided by 2 to get only the distance from object
+    };
+
+    // filter's fuction already with att values
+    float Update() {
+
+      // att the values
+      for (int i = N - 1; i > 0; i--) {
+        val[i] = val[i - 1];
+      }
+
+      // set the first value for the new read from sensor
+      val[0] = read();
+
+      //
+      long sunrise;
+
+      // add it all
+      for (int i = 0; i < N; i++) {
+        sunrise += val[i];
+      }
+
+      //
+      filter = sunrise / N;
+      Filter = filter; // get the value of private variable
+      return filter;
+    };
+};
+
+Ultrasom us1(16, 17);   // Ultrasonic 1
+
+const int barra[] = {   // pinos da barra gráfica
+  2, 3, 4, 5, 6, 7, 8, 9, 10, 12
+};
+
+// funções das threads
+void warnFunction() {   // controla o warn
+  if (pwm < 254 && muda == 0)   // liga o led até o maximo
+    pwm++;
+
+  else {      // se atingir o maximo, começa a diminuir até o minimo
+    muda = 1;
+    pwm--;
+    if (pwm == 1)       // se diminuiu até o minimo possivel, volta a acender
+      muda = 0;
+  }
+  analogWrite(warn, pwm);       // configura o led para acender ou diminuir
+}
+
+void bluetoothh() {     // Bluetooth
+  if (Serial.available()) {
+    char b = Serial.read();
+    //lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("char do blue: ");
+    lcd.print(b);
+  }
+}
+
+// controla a barra gráfica
+void Barra() {          // animação simples
+  if (t == 0) {
+    // faz algo
+    if (x <= 10) {
+      digitalWrite(barra[x], HIGH);
+      x++;
+
+      if (x == 10) {
+        t = 1;
+        x = 0;
+      }
+    }
+  } else {
+    // faz outro algo
+    if (x <= 10) {
+      digitalWrite(barra[x], LOW);
+      x++;
+
+      if (x == 10) {
+        t = 0;
+        x = 0;
+      }
+    }
+  }
+}
+
+void leituraLDR() {     // lê o sensor de presença
+  luz = analogRead(ldr);
+
+  //lcd.setCursor(0,1);
+  //lcd.print("Presenca: ");
+  //lcd.print(luz);
+  //lcd.print("     ");
+
+  if (luz < 400) digitalWrite(lampada, HIGH);
+  else digitalWrite(lampada, LOW);
+}
+
+void ultraComPot() {
+  pot = map(analogRead(potenciometro), 0, 1023, 10, 30);
+
+  lcd.setCursor(0, 1);
+  lcd.print("us1: ");
+  lcd.print(us1.Update());
+  lcd.print("  ");
+  lcd.setCursor(13, 1);
+  lcd.print(pot);
+}
+
+// cria as threads
+ThreadController cpu;
+Thread threadWarn;
+Thread threadBluetooth;
+Thread threadBarra;
+Thread threadLeitura;
+Thread threadUltra;
+Thread threadUltraComPot;
+
+// configura todas as threads e o delay de cada uma
+void ted() {
+  threadWarn.setInterval(4);
+  threadWarn.onRun(warnFunction);
+
+  //threadBluetooth.setInterval(10);
+  threadBluetooth.onRun(bluetoothh);
+
+  threadBarra.setInterval(100);
+  threadBarra.onRun(Barra);
+
+  threadLeitura.setInterval(200);
+  threadLeitura.onRun(leituraLDR);
+
+  threadUltraComPot.setInterval(60);
+  threadUltraComPot.onRun(ultraComPot);
+
+  // add no controlador 'cpu'
+  cpu.add(&threadWarn);
+  cpu.add(&threadBluetooth);
+  cpu.add(&threadBarra);
+  cpu.add(&threadLeitura);
+  cpu.add(&threadUltraComPot);
+}
+
+void setup() {
+  //inicia a comunicação serial e com o LCD
+  Serial.begin(9600);
+  lcd.begin(16, 2);
+
+  ted();    // chama a função para configurar as threads
+
+  for (int i = 0; i < 10; i++) {
+    pinMode(barra[i], OUTPUT);
+    delay(50);
+  }
+
+  pinMode(warn, OUTPUT);
+  pinMode(lampada, OUTPUT);
+
+  lcd.setCursor(0, 0);
+  lcd.print("char do blue: ");
+  lcd.print("A");
+}
+
+void loop() {
+  // com uma simples linha de código podemos controlar todas
+  // as funções, sem usar o delay ou travar nosso programa
+  cpu.run();    // executa todas as threads
+}
