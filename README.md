@@ -15,7 +15,7 @@ For this project, i used the components below:
   - 2 Led
 
 ## Circuit
-![](https://github.com/dyonataferreira/Mix/blob/master/Mistureba.png)
+![](https://github.com/dyonataferreira/Mix/blob/master/circuit-image.png)
 
 ## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
