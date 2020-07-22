@@ -1,4 +1,4 @@
-# Mix
+# Bluetooth, Ultrasonic, LCD I2C, led Animation - All at the same time
 In Pandemic time and while quarentine i decided to practices my eletronic and programing skills and put a moung of thing all together, and made all works fluently without use delay in my code. To do this, i started puting some simple components but give them advanced codes.
 
 To understand correctly this project, first you need to know about Arduino [Threads](https://github.com/ivanseidel/ArduinoThread/blob/master/README.md) made by [Ivan Seidel](https://github.com/ivanseidel/). here is [2 tutorials videos](https://www.youtube.com/playlist?list=PLbXp-OoJdUsVirwEAyO-q3PBYynftICyE) that will make you undertand more about it.
