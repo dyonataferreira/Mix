@@ -1,5 +1,5 @@
 // this project use:
-// led, laser, LDR, led bar, LCD with I2C, bluetooth
+// led, laser, LDR, led graphic bar, LCD with I2C, bluetooth
 
 // includes all necessary libraries
 #include <LiquidCrystal_I2C.h>
